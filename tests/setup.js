@@ -31,6 +31,12 @@ global.testUtils = {
 
 // Cleanup handlers
 afterAll(async () => {
+  // Clean up any database connections
+  const pool = require('../src/config/database');
+  if (pool && pool.end) {
+    await pool.end();
+  }
+  
   // Allow time for cleanup
   await new Promise(resolve => setTimeout(resolve, 500));
 });
