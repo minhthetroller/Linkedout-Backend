@@ -9,6 +9,7 @@ yarn-error.log*
 .env.local
 .env.development
 .env.production
+.env.test
 
 # IDE
 .vscode/
@@ -32,3 +33,7 @@ coverage/
 # Build
 dist/
 build/
+
+# Documentation (except README)
+*.md
+!README.md
