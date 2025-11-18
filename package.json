@@ -1,0 +1,35 @@
+{
+  "name": "linkedout-backend",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "job-recruitment",
+    "express",
+    "postgresql",
+    "nodejs",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Job recruitment mobile app backend with Express.js, PostgreSQL, AWS S3, and Gemini AI",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.933.0",
+    "@aws-sdk/s3-request-presigner": "^3.933.0",
+    "@google/generative-ai": "^0.24.1",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-validator": "^7.3.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "node-cache": "^5.1.2",
+    "pg": "^8.16.3"
+  }
+}
