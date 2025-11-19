@@ -290,10 +290,10 @@ exports.browseJobs = async (req, res) => {
     const { location, salary_min, salary_max, employment_type, tags, page = 1, limit = 20 } = req.query;
 
     let query = `
-      SELECT DISTINCT
+      SELECT 
         j.*,
         COALESCE(
-          json_agg(DISTINCT
+          json_agg(
             json_build_object('id', t.id, 'name', t.name, 'category', t.category)
           ) FILTER (WHERE t.id IS NOT NULL),
           '[]'
@@ -352,7 +352,7 @@ exports.browseJobs = async (req, res) => {
       paramIndex++;
     }
 
-    query += ` ORDER BY j.created_at DESC`;
+    query += ` ORDER BY created_at DESC`;
 
     // Pagination
     const offset = (page - 1) * limit;

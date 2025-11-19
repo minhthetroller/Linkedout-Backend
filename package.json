@@ -5,7 +5,12 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --runInBand --detectOpenHandles --forceExit",
+    "test:unit": "jest --testPathPattern=unit --runInBand --detectOpenHandles --forceExit",
+    "test:integration": "jest --testPathPattern=integration --runInBand --detectOpenHandles --forceExit",
+    "test:system": "jest --testPathPattern=system --runInBand --detectOpenHandles --forceExit",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand --detectOpenHandles --forceExit"
   },
   "keywords": [
     "job-recruitment",
@@ -31,5 +36,9 @@
     "multer": "^2.0.2",
     "node-cache": "^5.1.2",
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }

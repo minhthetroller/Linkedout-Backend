@@ -1,0 +1,194 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17.2
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: linkedout_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d linkedout_test -f database.sql
+        env:
+          PGPASSWORD: postgres
+
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          PORT: 3001
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: linkedout_test
+          JWT_SECRET: test_jwt_secret_for_github_actions_ci
+          AWS_ACCESS_KEY_ID: test_access_key_id
+          AWS_SECRET_ACCESS_KEY: test_secret_access_key
+          AWS_S3_BUCKET_NAME: test-bucket
+          AWS_REGION: ap-southeast-1
+          GEMINI_API_KEY: test_gemini_api_key
+          CORS_ORIGIN: http://localhost:3000
+
+      - name: Generate coverage report
+        run: npm run test:coverage
+        continue-on-error: true
+        env:
+          NODE_ENV: test
+          PORT: 3001
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: linkedout_test
+          JWT_SECRET: test_jwt_secret_for_github_actions_ci
+          AWS_ACCESS_KEY_ID: test_access_key_id
+          AWS_SECRET_ACCESS_KEY: test_secret_access_key
+          AWS_S3_BUCKET_NAME: test-bucket
+          AWS_REGION: ap-southeast-1
+          GEMINI_API_KEY: test_gemini_api_key
+          CORS_ORIGIN: http://localhost:3000
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: matrix.node-version == '20.x'
+        continue-on-error: true
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for syntax errors
+        run: node -c src/server.js
+
+      - name: Verify project structure
+        run: |
+          echo "✓ Checking project structure..."
+          test -f package.json && echo "✓ package.json found"
+          test -f src/server.js && echo "✓ src/server.js found"
+          test -f src/app.js && echo "✓ src/app.js found"
+          test -d src/controllers && echo "✓ controllers directory found"
+          test -d src/routes && echo "✓ routes directory found"
+          test -d src/middleware && echo "✓ middleware directory found"
+          test -d src/services && echo "✓ services directory found"
+          test -d src/config && echo "✓ config directory found"
+
+      - name: Build status
+        run: echo "✓ Build successful!"
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check code style
+        run: |
+          echo "Checking for common issues..."
+          # Check for console.logs in production code (warning only)
+          find src -name "*.js" -type f | xargs grep -n "console.log" || echo "✓ No console.logs found"
+        continue-on-error: true
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Check for vulnerable dependencies
+        run: |
+          echo "Checking package.json for security issues..."
+          npm outdated || true
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [test, build, lint, security]
+    if: always()
+
+    steps:
+      - name: Check status
+        run: |
+          echo "Pipeline Status:"
+          echo "Test: ${{ needs.test.result }}"
+          echo "Build: ${{ needs.build.result }}"
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Security: ${{ needs.security.result }}"
