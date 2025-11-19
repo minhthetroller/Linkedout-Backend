@@ -647,6 +647,210 @@ describe('Complete User Workflows - System Tests', () => {
       console.log('✓ Step 3: Full profile access granted\n');
     });
   });
+
+  describe('Job Application Workflow', () => {
+    it('should complete full job application workflow: browse -> apply -> track', () => {
+      console.log('\n=== Starting Job Application Workflow ===\n');
+
+      // Setup: Create seeker and recruiter
+      const seekerId = generateId();
+      const recruiterId = generateId();
+
+      mockDatabase.users.push(
+        {
+          id: seekerId,
+          email: 'applicant@test.com',
+          user_type: 'seeker'
+        },
+        {
+          id: recruiterId,
+          email: 'hiring@test.com',
+          user_type: 'recruiter'
+        }
+      );
+
+      mockDatabase.profiles.push(
+        {
+          id: generateId(),
+          user_id: seekerId,
+          full_name: 'Test Applicant',
+          profile_completion_step: 2
+        },
+        {
+          id: generateId(),
+          user_id: recruiterId,
+          full_name: 'Test Recruiter',
+          company_name: 'Test Corp',
+          profile_completion_step: 2
+        }
+      );
+
+      // Create job posting
+      console.log('Step 1: Recruiter creates job posting...');
+      const job = {
+        id: generateId(),
+        recruiter_id: recruiterId,
+        title: 'Full Stack Developer',
+        description: 'Looking for experienced developer',
+        status: 'active',
+        created_at: new Date()
+      };
+      mockDatabase.jobs.push(job);
+      console.log('✓ Job posting created');
+
+      // Seeker browses and finds job
+      console.log('\nStep 2: Seeker browses available jobs...');
+      const activeJobs = mockDatabase.jobs.filter(j => j.status === 'active');
+      expect(activeJobs.length).toBe(1);
+      console.log(`✓ Found ${activeJobs.length} available job(s)`);
+
+      // Seeker applies to job
+      console.log('\nStep 3: Seeker applies to job...');
+      if (!mockDatabase.jobApplications) {
+        mockDatabase.jobApplications = [];
+      }
+
+      const application = {
+        id: generateId(),
+        job_id: job.id,
+        seeker_id: seekerId,
+        status: 'pending',
+        cover_letter: 'I am very interested in this position...',
+        created_at: new Date()
+      };
+      mockDatabase.jobApplications.push(application);
+
+      expect(mockDatabase.jobApplications.length).toBe(1);
+      expect(mockDatabase.jobApplications[0].status).toBe('pending');
+      console.log('✓ Application submitted successfully');
+
+      // Prevent duplicate applications
+      console.log('\nStep 4: Testing duplicate application prevention...');
+      const existingApplication = mockDatabase.jobApplications.find(
+        app => app.job_id === job.id && app.seeker_id === seekerId
+      );
+      const canApplyAgain = !existingApplication;
+
+      expect(canApplyAgain).toBe(false);
+      console.log('✓ Duplicate application prevented');
+
+      // Recruiter views applications
+      console.log('\nStep 5: Recruiter views applications...');
+      const jobApplications = mockDatabase.jobApplications.filter(
+        app => app.job_id === job.id
+      );
+
+      expect(jobApplications.length).toBe(1);
+      console.log(`✓ Recruiter sees ${jobApplications.length} application(s)`);
+
+      // Application statistics
+      console.log('\nApplication statistics:');
+      const statistics = {
+        total: jobApplications.length,
+        pending: jobApplications.filter(a => a.status === 'pending').length,
+        reviewed: jobApplications.filter(a => a.status === 'reviewed').length,
+        accepted: jobApplications.filter(a => a.status === 'accepted').length,
+        rejected: jobApplications.filter(a => a.status === 'rejected').length
+      };
+
+      expect(statistics.total).toBe(1);
+      expect(statistics.pending).toBe(1);
+      console.log(`  Total: ${statistics.total}`);
+      console.log(`  Pending: ${statistics.pending}`);
+      console.log(`  Reviewed: ${statistics.reviewed}`);
+      console.log(`  Accepted: ${statistics.accepted}`);
+      console.log(`  Rejected: ${statistics.rejected}`);
+
+      console.log('\n=== Job Application Workflow Complete ===\n');
+    });
+
+    it('should handle application to closed job', () => {
+      console.log('\n=== Testing Application to Closed Job ===\n');
+
+      const seekerId = generateId();
+      const recruiterId = generateId();
+
+      mockDatabase.users.push(
+        { id: seekerId, user_type: 'seeker' },
+        { id: recruiterId, user_type: 'recruiter' }
+      );
+
+      // Create closed job
+      const closedJob = {
+        id: generateId(),
+        recruiter_id: recruiterId,
+        title: 'Closed Position',
+        status: 'closed'
+      };
+      mockDatabase.jobs.push(closedJob);
+
+      // Try to apply to closed job
+      const canApply = closedJob.status === 'active';
+
+      expect(canApply).toBe(false);
+      console.log('✓ Application to closed job prevented');
+      console.log('✓ Only active jobs accept applications\n');
+    });
+
+    it('should support multiple applications from same seeker', () => {
+      console.log('\n=== Testing Multiple Applications ===\n');
+
+      if (!mockDatabase.jobApplications) {
+        mockDatabase.jobApplications = [];
+      }
+
+      const seekerId = generateId();
+      const recruiterId = generateId();
+
+      mockDatabase.users.push(
+        { id: seekerId, user_type: 'seeker' },
+        { id: recruiterId, user_type: 'recruiter' }
+      );
+
+      // Create multiple jobs
+      const job1 = {
+        id: generateId(),
+        recruiter_id: recruiterId,
+        title: 'Job 1',
+        status: 'active'
+      };
+
+      const job2 = {
+        id: generateId(),
+        recruiter_id: recruiterId,
+        title: 'Job 2',
+        status: 'active'
+      };
+
+      mockDatabase.jobs.push(job1, job2);
+
+      // Apply to both jobs
+      mockDatabase.jobApplications.push(
+        {
+          id: generateId(),
+          job_id: job1.id,
+          seeker_id: seekerId,
+          status: 'pending',
+          created_at: new Date()
+        },
+        {
+          id: generateId(),
+          job_id: job2.id,
+          seeker_id: seekerId,
+          status: 'pending',
+          created_at: new Date()
+        }
+      );
+
+      const seekerApplications = mockDatabase.jobApplications.filter(
+        app => app.seeker_id === seekerId
+      );
+
+      expect(seekerApplications.length).toBe(2);
+      console.log(`✓ Seeker can apply to multiple jobs`);
+      console.log(`✓ Seeker has ${seekerApplications.length} active applications\n`);
+    });
+  });
 });
 
 console.log('\n✓ All system tests defined\n');

@@ -36,6 +36,24 @@ router.delete(
   jobController.deleteJob
 );
 
+// Get applicants for a specific job (recruiter only)
+router.get(
+  '/recruiter/jobs/:id/applicants',
+  verifyToken,
+  checkUserType(['recruiter']),
+  requireCompleteProfile,
+  jobController.getJobApplicants
+);
+
+// Get all applicants across all recruiter's jobs
+router.get(
+  '/recruiter/applicants',
+  verifyToken,
+  checkUserType(['recruiter']),
+  requireCompleteProfile,
+  jobController.getAllApplicants
+);
+
 // Seeker/Public routes (protected, complete profile required)
 router.get(
   '/jobs',
@@ -50,6 +68,15 @@ router.get(
   checkUserType(['seeker']),
   requireCompleteProfile,
   jobController.getRecommendedJobs
+);
+
+// Apply to a job (seeker only) - MUST come before /jobs/:id to avoid route conflict
+router.post(
+  '/jobs/:id/apply',
+  verifyToken,
+  checkUserType(['seeker']),
+  requireCompleteProfile,
+  jobController.applyToJob
 );
 
 router.get(
