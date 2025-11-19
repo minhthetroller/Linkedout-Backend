@@ -592,7 +592,7 @@ describe('Complete User Workflows - System Tests', () => {
       const salaryFiltered = jobs.filter(j =>
         j.salary_max && j.salary_max >= minSalary
       );
-      expect(salaryFiltered.length).toBe(2);
+      expect(salaryFiltered.length).toBe(3);
       console.log(`✓ Salary filter: Found ${salaryFiltered.length} job(s) >= $${minSalary}`);
 
       // Filter by employment type

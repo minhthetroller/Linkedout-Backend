@@ -36,15 +36,15 @@ const mockGeminiService = {
       'kubernetes': 'Kubernetes'
     };
 
-    // Extract job roles
+    // Extract job roles (order matters - more specific first)
     const roleKeywords = {
-      'developer': 'Software Developer',
-      'engineer': 'Software Engineer',
       'full stack': 'Full Stack Developer',
       'frontend': 'Frontend Developer',
       'backend': 'Backend Developer',
       'devops': 'DevOps Engineer',
-      'data scientist': 'Data Scientist'
+      'data scientist': 'Data Scientist',
+      'developer': 'Software Developer',
+      'engineer': 'Software Engineer'
     };
 
     // Find matching keywords
@@ -54,8 +54,9 @@ const mockGeminiService = {
       }
     });
 
+    // For roles, check more specific matches first
     Object.entries(roleKeywords).forEach(([keyword, tag]) => {
-      if (description.includes(keyword) && tags.length < 3) {
+      if (description.includes(keyword) && tags.length < 3 && !tags.includes(tag)) {
         tags.push(tag);
       }
     });
@@ -195,6 +196,7 @@ describe('Gemini Service - Unit Tests', () => {
       expect(tags).toContain('DevOps Engineer');
       expect(tags).toContain('AWS');
       expect(tags).toContain('Docker');
+      expect(tags.length).toBe(3);
     });
   });
 
