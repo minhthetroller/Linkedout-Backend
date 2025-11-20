@@ -54,6 +54,24 @@ router.get(
   jobController.getAllApplicants
 );
 
+// Get specific application details
+router.get(
+  '/recruiter/applications/:id',
+  verifyToken,
+  checkUserType(['recruiter']),
+  requireCompleteProfile,
+  jobController.getApplicationDetails
+);
+
+// Update application status (accept/reject)
+router.put(
+  '/recruiter/applications/:id/status',
+  verifyToken,
+  checkUserType(['recruiter']),
+  requireCompleteProfile,
+  jobController.updateApplicationStatus
+);
+
 // Seeker/Public routes (protected, complete profile required)
 router.get(
   '/jobs',
