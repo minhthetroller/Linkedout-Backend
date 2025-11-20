@@ -247,7 +247,7 @@ exports.updateJob = async (req, res) => {
 };
 
 /**
- * Delete a job (soft delete by setting status to 'closed')
+ * Delete a job (hard delete)
  */
 exports.deleteJob = async (req, res) => {
   try {
@@ -255,8 +255,7 @@ exports.deleteJob = async (req, res) => {
     const jobId = req.params.id;
 
     const result = await db.query(
-      `UPDATE jobs 
-       SET status = 'closed', updated_at = CURRENT_TIMESTAMP
+      `DELETE FROM jobs 
        WHERE id = $1 AND recruiter_id = $2
        RETURNING id`,
       [jobId, recruiterId]
@@ -271,13 +270,13 @@ exports.deleteJob = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Job closed successfully',
+      message: 'Job deleted successfully',
     });
   } catch (error) {
     console.error('Delete job error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to close job',
+      message: 'Failed to delete job',
     });
   }
 };
@@ -945,6 +944,88 @@ exports.applyToJob = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to submit application',
+    });
+  }
+};
+
+/**
+ * Get all applications for the authenticated seeker
+ */
+exports.getSeekerApplications = async (req, res) => {
+  try {
+    const seekerId = req.user.userId;
+    const { status, page = 1, limit = 20 } = req.query;
+
+    let query = `
+      SELECT 
+        ja.id as application_id,
+        ja.status as application_status,
+        ja.cover_letter,
+        ja.created_at as applied_at,
+        ja.updated_at as application_updated_at,
+        j.id as job_id,
+        j.title as job_title,
+        j.location as job_location,
+        j.employment_type,
+        j.salary_min,
+        j.salary_max,
+        upr.company_name,
+        upr.company_logo_s3_url
+      FROM job_applications ja
+      INNER JOIN jobs j ON ja.job_id = j.id
+      INNER JOIN users u ON j.recruiter_id = u.id
+      LEFT JOIN user_profiles_recruiter upr ON u.id = upr.user_id
+      WHERE ja.seeker_id = $1
+    `;
+
+    const params = [seekerId];
+    let paramIndex = 2;
+
+    if (status) {
+      query += ` AND ja.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY ja.created_at DESC`;
+
+    const offset = (page - 1) * limit;
+    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+
+    const result = await db.query(query, params);
+
+    // Get total count
+    let countQuery = 'SELECT COUNT(*) FROM job_applications WHERE seeker_id = $1';
+    const countParams = [seekerId];
+    let countParamIndex = 2;
+
+    if (status) {
+      countQuery += ` AND status = $${countParamIndex}`;
+      countParams.push(status);
+      countParamIndex++;
+    }
+
+    const countResult = await db.query(countQuery, countParams);
+    const totalApplications = parseInt(countResult.rows[0].count);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        applications: result.rows,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: totalApplications,
+          pages: Math.ceil(totalApplications / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get seeker applications error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch applications',
     });
   }
 };

@@ -88,6 +88,15 @@ router.get(
   jobController.getRecommendedJobs
 );
 
+// Get seeker's application history
+router.get(
+  '/seeker/applications',
+  verifyToken,
+  checkUserType(['seeker']),
+  requireCompleteProfile,
+  jobController.getSeekerApplications
+);
+
 // Apply to a job (seeker only) - MUST come before /jobs/:id to avoid route conflict
 router.post(
   '/jobs/:id/apply',

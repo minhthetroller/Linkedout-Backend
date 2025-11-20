@@ -1300,9 +1300,61 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
+### 14. Get Seeker Applications
+
+**Endpoint**: `GET /seeker/applications`
+
+**Description**: Retrieves the history of job applications for the authenticated seeker, including status and job details.
+
+**Headers**: 
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Requirements**: 
+- User must be a seeker
+- Profile must be complete
+
+**Query Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| status | string | No | Filter by application status: "pending", "reviewed", "accepted", "rejected" |
+| page | integer | No | Page number (default: 1) |
+| limit | integer | No | Results per page (default: 20) |
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "applications": [
+      {
+        "application_id": 25,
+        "application_status": "pending",
+        "applied_at": "2025-11-19T15:30:00.000Z",
+        "job_id": 1,
+        "job_title": "Senior Full Stack Developer",
+        "company_name": "Tech Corp Inc.",
+        "company_logo_s3_url": "https://linkedout-bucket.s3.amazonaws.com/profile-images/2/logo.png",
+        "location": "San Francisco, CA (Remote)",
+        "employment_type": "Full-time"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "pages": 1
+    }
+  }
+}
+```
+
+---
+
 ## File Uploads
 
-### 14. Upload Resume
+### 15. Upload Resume
 
 **Endpoint**: `POST /upload/resume`
 
@@ -1361,7 +1413,7 @@ Content-Type: multipart/form-data
 
 ---
 
-### 15. Upload Profile Image
+### 16. Upload Profile Image
 
 **Endpoint**: `POST /upload/profile-image`
 
@@ -1412,7 +1464,7 @@ Content-Type: multipart/form-data
 
 ---
 
-### 16. Get Signed File URL
+### 17. Get Signed File URL
 
 **Endpoint**: `GET /upload/file-url`
 
@@ -1609,5 +1661,5 @@ For API issues or questions:
 
 ---
 
-**Last Updated**: November 19, 2025
-**API Version**: 1.2.0
+**Last Updated**: November 20, 2025
+**API Version**: 1.3.0
