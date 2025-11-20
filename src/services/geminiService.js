@@ -34,8 +34,11 @@ class GeminiService {
 
       // Call Gemini API
       const prompt = `Analyze this job description and return exactly 3 relevant tags as comma-separated values. 
-The tags should represent key skills, technologies, or job characteristics mentioned in the description.
-Only return the tags, nothing else.
+Rules:
+1. Detect the language of the description. If it is Vietnamese, return tags in Vietnamese. If it is English, return tags in English.
+2. Avoid generic multi-word tags. For example, split "online coaching" into "online", "coaching". Keep technical terms like "React Native" or "Node.js" intact.
+3. The tags should represent key skills, technologies, or job characteristics.
+4. Only return the tags, nothing else.
 
 Job Description: ${jobDescription}`;
 

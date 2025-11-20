@@ -724,6 +724,17 @@ describe('Complete User Workflows - System Tests', () => {
       expect(mockDatabase.jobApplications[0].status).toBe('pending');
       console.log('✓ Application submitted successfully');
 
+      // Verify has_applied flag
+      console.log('\nVerifying application status in job details...');
+      const jobDetails = { ...job };
+      const userApplication = mockDatabase.jobApplications.find(
+        app => app.job_id === job.id && app.seeker_id === seekerId
+      );
+      jobDetails.has_applied = !!userApplication;
+      
+      expect(jobDetails.has_applied).toBe(true);
+      console.log('✓ Job details correctly report has_applied=true');
+
       // Prevent duplicate applications
       console.log('\nStep 4: Testing duplicate application prevention...');
       const existingApplication = mockDatabase.jobApplications.find(

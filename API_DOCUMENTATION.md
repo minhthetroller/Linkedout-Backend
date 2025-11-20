@@ -758,6 +758,126 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
+### 12. Get Specific Application Details
+
+**Endpoint**: `GET /recruiter/applications/:id`
+
+**Description**: Retrieves detailed information about a specific job application, including seeker profile.
+
+**Headers**: 
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Requirements**: 
+- User must be a recruiter
+- Job must belong to the recruiter
+- Profile must be complete
+
+**URL Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| id | integer | Application ID |
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "application": {
+      "application_id": 5,
+      "application_status": "pending",
+      "cover_letter": "I am very interested in this position...",
+      "applied_at": "2025-11-19T10:30:00.000Z",
+      "application_updated_at": "2025-11-19T10:30:00.000Z",
+      "job_id": 1,
+      "job_title": "Senior Full Stack Developer",
+      "seeker_id": 3,
+      "seeker_email": "jane.smith@example.com",
+      "full_name": "Jane Smith",
+      "current_job": "Software Developer",
+      "years_experience": 5,
+      "location": "San Francisco, CA",
+      "phone": "+1234567890",
+      "profile_image_s3_url": "https://s3.amazonaws.com/...",
+      "resume_s3_url": "https://s3.amazonaws.com/..."
+    }
+  }
+}
+```
+
+**Error Response** (404):
+```json
+{
+  "success": false,
+  "message": "Application not found or unauthorized"
+}
+```
+
+---
+
+### 13. Update Application Status
+
+**Endpoint**: `PUT /recruiter/applications/:id/status`
+
+**Description**: Updates the status of a job application (e.g., accept, reject).
+
+**Headers**: 
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Requirements**: 
+- User must be a recruiter
+- Job must belong to the recruiter
+- Profile must be complete
+
+**URL Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| id | integer | Application ID |
+
+**Request Body**:
+```json
+{
+  "status": "accepted"
+}
+```
+
+**Parameters**:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| status | string | Yes | New status: "pending", "reviewed", "accepted", "rejected" |
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "message": "Application status updated successfully",
+  "data": {
+    "application": {
+      "id": 5,
+      "job_id": 1,
+      "seeker_id": 3,
+      "status": "accepted",
+      "cover_letter": "...",
+      "created_at": "2025-11-19T10:30:00.000Z",
+      "updated_at": "2025-11-20T14:00:00.000Z"
+    }
+  }
+}
+```
+
+**Error Response** (400):
+```json
+{
+  "success": false,
+  "message": "Invalid status. Must be one of: pending, reviewed, accepted, rejected"
+}
+```
+
+---
+
 ## Jobs - Seeker
 
 ### 10. Browse Jobs
@@ -896,7 +1016,8 @@ Authorization: Bearer <JWT_TOKEN>
       "recruiter_email": "recruiter@techcorp.com",
       "company_name": "Tech Corp Inc.",
       "company_size": "100-500",
-      "company_website": "https://techcorp.com"
+      "company_website": "https://techcorp.com",
+      "has_applied": false
     }
   }
 }
@@ -1179,9 +1300,61 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
+### 14. Get Seeker Applications
+
+**Endpoint**: `GET /seeker/applications`
+
+**Description**: Retrieves the history of job applications for the authenticated seeker, including status and job details.
+
+**Headers**: 
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Requirements**: 
+- User must be a seeker
+- Profile must be complete
+
+**Query Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| status | string | No | Filter by application status: "pending", "reviewed", "accepted", "rejected" |
+| page | integer | No | Page number (default: 1) |
+| limit | integer | No | Results per page (default: 20) |
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "applications": [
+      {
+        "application_id": 25,
+        "application_status": "pending",
+        "applied_at": "2025-11-19T15:30:00.000Z",
+        "job_id": 1,
+        "job_title": "Senior Full Stack Developer",
+        "company_name": "Tech Corp Inc.",
+        "company_logo_s3_url": "https://linkedout-bucket.s3.amazonaws.com/profile-images/2/logo.png",
+        "location": "San Francisco, CA (Remote)",
+        "employment_type": "Full-time"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "pages": 1
+    }
+  }
+}
+```
+
+---
+
 ## File Uploads
 
-### 14. Upload Resume
+### 15. Upload Resume
 
 **Endpoint**: `POST /upload/resume`
 
@@ -1240,7 +1413,7 @@ Content-Type: multipart/form-data
 
 ---
 
-### 15. Upload Profile Image
+### 16. Upload Profile Image
 
 **Endpoint**: `POST /upload/profile-image`
 
@@ -1291,7 +1464,7 @@ Content-Type: multipart/form-data
 
 ---
 
-### 16. Get Signed File URL
+### 17. Get Signed File URL
 
 **Endpoint**: `GET /upload/file-url`
 
@@ -1488,5 +1661,5 @@ For API issues or questions:
 
 ---
 
-**Last Updated**: November 19, 2025
-**API Version**: 1.2.0
+**Last Updated**: November 20, 2025
+**API Version**: 1.3.0
