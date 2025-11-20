@@ -26,7 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 // Request logging middleware (development)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`);
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
     next();
   });
 }

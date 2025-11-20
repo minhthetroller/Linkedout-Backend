@@ -467,6 +467,266 @@ exports.getJobById = async (req, res) => {
 };
 
 /**
+ * Get all applicants for recruiter's jobs
+ */
+exports.getJobApplicants = async (req, res) => {
+  try {
+    const recruiterId = req.user.userId;
+    const jobId = req.params.id;
+    const { status, page = 1, limit = 20 } = req.query;
+
+    // First, verify the job belongs to the recruiter
+    const jobCheck = await db.query(
+      'SELECT id, title FROM jobs WHERE id = $1 AND recruiter_id = $2',
+      [jobId, recruiterId]
+    );
+
+    if (jobCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found or unauthorized',
+      });
+    }
+
+    const job = jobCheck.rows[0];
+
+    // Build query for applicants
+    let query = `
+      SELECT 
+        ja.id as application_id,
+        ja.status as application_status,
+        ja.cover_letter,
+        ja.created_at as applied_at,
+        ja.updated_at as application_updated_at,
+        u.id as seeker_id,
+        u.email as seeker_email,
+        ups.full_name,
+        ups.current_job,
+        ups.years_experience,
+        ups.location,
+        ups.phone,
+        ups.profile_image_s3_url,
+        ups.resume_s3_url
+      FROM job_applications ja
+      INNER JOIN users u ON ja.seeker_id = u.id
+      INNER JOIN user_profiles_seeker ups ON u.id = ups.user_id
+      WHERE ja.job_id = $1
+    `;
+
+    const params = [jobId];
+    let paramIndex = 2;
+
+    // Filter by application status if provided
+    if (status) {
+      query += ` AND ja.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY ja.created_at DESC`;
+
+    // Pagination
+    const offset = (page - 1) * limit;
+    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+
+    const result = await db.query(query, params);
+
+    // Get total count
+    let countQuery = 'SELECT COUNT(*) FROM job_applications WHERE job_id = $1';
+    const countParams = [jobId];
+    
+    if (status) {
+      countQuery += ' AND status = $2';
+      countParams.push(status);
+    }
+
+    const countResult = await db.query(countQuery, countParams);
+    const totalApplicants = parseInt(countResult.rows[0].count);
+
+    // Get applicant statistics
+    const statsResult = await db.query(
+      `SELECT 
+        status,
+        COUNT(*) as count
+       FROM job_applications
+       WHERE job_id = $1
+       GROUP BY status`,
+      [jobId]
+    );
+
+    const statistics = {
+      total: totalApplicants,
+      pending: 0,
+      reviewed: 0,
+      accepted: 0,
+      rejected: 0,
+    };
+
+    statsResult.rows.forEach(row => {
+      statistics[row.status] = parseInt(row.count);
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        job: {
+          id: job.id,
+          title: job.title,
+        },
+        applicants: result.rows,
+        statistics,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: totalApplicants,
+          pages: Math.ceil(totalApplicants / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get job applicants error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch job applicants',
+    });
+  }
+};
+
+/**
+ * Get all applicants across all recruiter's jobs
+ */
+exports.getAllApplicants = async (req, res) => {
+  try {
+    const recruiterId = req.user.userId;
+    const { status, job_id, page = 1, limit = 20 } = req.query;
+
+    // Build query for all applicants across recruiter's jobs
+    let query = `
+      SELECT 
+        ja.id as application_id,
+        ja.status as application_status,
+        ja.cover_letter,
+        ja.created_at as applied_at,
+        ja.updated_at as application_updated_at,
+        j.id as job_id,
+        j.title as job_title,
+        j.location as job_location,
+        j.employment_type,
+        u.id as seeker_id,
+        u.email as seeker_email,
+        ups.full_name,
+        ups.current_job,
+        ups.years_experience,
+        ups.location as seeker_location,
+        ups.phone,
+        ups.profile_image_s3_url,
+        ups.resume_s3_url
+      FROM job_applications ja
+      INNER JOIN jobs j ON ja.job_id = j.id
+      INNER JOIN users u ON ja.seeker_id = u.id
+      INNER JOIN user_profiles_seeker ups ON u.id = ups.user_id
+      WHERE j.recruiter_id = $1
+    `;
+
+    const params = [recruiterId];
+    let paramIndex = 2;
+
+    // Filter by application status if provided
+    if (status) {
+      query += ` AND ja.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    // Filter by specific job if provided
+    if (job_id) {
+      query += ` AND ja.job_id = $${paramIndex}`;
+      params.push(job_id);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY ja.created_at DESC`;
+
+    // Pagination
+    const offset = (page - 1) * limit;
+    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+
+    const result = await db.query(query, params);
+
+    // Get total count
+    let countQuery = `
+      SELECT COUNT(*) 
+      FROM job_applications ja
+      INNER JOIN jobs j ON ja.job_id = j.id
+      WHERE j.recruiter_id = $1
+    `;
+    const countParams = [recruiterId];
+    let countParamIndex = 2;
+    
+    if (status) {
+      countQuery += ` AND ja.status = $${countParamIndex}`;
+      countParams.push(status);
+      countParamIndex++;
+    }
+
+    if (job_id) {
+      countQuery += ` AND ja.job_id = $${countParamIndex}`;
+      countParams.push(job_id);
+      countParamIndex++;
+    }
+
+    const countResult = await db.query(countQuery, countParams);
+    const totalApplicants = parseInt(countResult.rows[0].count);
+
+    // Get overall statistics
+    const statsResult = await db.query(
+      `SELECT 
+        ja.status,
+        COUNT(*) as count
+       FROM job_applications ja
+       INNER JOIN jobs j ON ja.job_id = j.id
+       WHERE j.recruiter_id = $1
+       GROUP BY ja.status`,
+      [recruiterId]
+    );
+
+    const statistics = {
+      total: totalApplicants,
+      pending: 0,
+      reviewed: 0,
+      accepted: 0,
+      rejected: 0,
+    };
+
+    statsResult.rows.forEach(row => {
+      statistics[row.status] = parseInt(row.count);
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        applicants: result.rows,
+        statistics,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: totalApplicants,
+          pages: Math.ceil(totalApplicants / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get all applicants error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch applicants',
+    });
+  }
+};
+
+/**
  * Get recommended jobs for seeker based on preferences
  */
 exports.getRecommendedJobs = async (req, res) => {
@@ -587,6 +847,87 @@ exports.getRecommendedJobs = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch recommended jobs',
+    });
+  }
+};
+
+/**
+ * Apply to a job (Seeker only)
+ */
+exports.applyToJob = async (req, res) => {
+  try {
+    const seekerId = req.user.userId;
+    const jobId = req.params.id;
+    const { cover_letter } = req.body;
+
+    // Validate job exists and is active
+    const jobCheck = await db.query(
+      'SELECT id, title, status FROM jobs WHERE id = $1',
+      [jobId]
+    );
+
+    if (jobCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found',
+      });
+    }
+
+    const job = jobCheck.rows[0];
+
+    if (job.status !== 'active') {
+      return res.status(400).json({
+        success: false,
+        message: 'This job is no longer accepting applications',
+      });
+    }
+
+    // Check if seeker has already applied
+    const existingApplication = await db.query(
+      'SELECT id FROM job_applications WHERE job_id = $1 AND seeker_id = $2',
+      [jobId, seekerId]
+    );
+
+    if (existingApplication.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already applied to this job',
+      });
+    }
+
+    // Create application
+    const result = await db.query(
+      `INSERT INTO job_applications (job_id, seeker_id, cover_letter, status)
+       VALUES ($1, $2, $3, 'pending')
+       RETURNING *`,
+      [jobId, seekerId, cover_letter || null]
+    );
+
+    const application = result.rows[0];
+
+    res.status(201).json({
+      success: true,
+      message: 'Application submitted successfully',
+      data: {
+        application: {
+          id: application.id,
+          job_id: application.job_id,
+          seeker_id: application.seeker_id,
+          status: application.status,
+          cover_letter: application.cover_letter,
+          created_at: application.created_at,
+        },
+        job: {
+          id: job.id,
+          title: job.title,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Apply to job error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit application',
     });
   }
 };

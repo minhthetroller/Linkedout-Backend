@@ -603,6 +603,161 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
+### 10. Get Applicants for a Specific Job
+
+**Endpoint**: `GET /recruiter/jobs/:id/applicants`
+
+**Description**: Retrieves all applicants who have applied to a specific job posting.
+
+**Headers**: 
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Requirements**: 
+- User must be a recruiter
+- Job must belong to the recruiter
+- Profile must be complete
+
+**URL Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| id | integer | Job ID |
+
+**Query Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| status | string | No | Filter by application status: "pending", "reviewed", "accepted", "rejected" |
+| page | integer | No | Page number (default: 1) |
+| limit | integer | No | Results per page (default: 20) |
+
+**Request Body**: None
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "job": {
+      "id": 1,
+      "title": "Senior Full Stack Developer"
+    },
+    "applicants": [
+      {
+        "application_id": 5,
+        "application_status": "pending",
+        "cover_letter": "I am very interested in this position...",
+        "applied_at": "2025-11-19T10:30:00.000Z",
+        "application_updated_at": "2025-11-19T10:30:00.000Z",
+        "seeker_id": 3,
+        "seeker_email": "jane.smith@example.com",
+        "full_name": "Jane Smith",
+        "current_job": "Software Developer",
+        "years_experience": 5,
+        "location": "San Francisco, CA",
+        "phone": "+1234567890",
+        "profile_image_s3_url": "https://s3.amazonaws.com/...",
+        "resume_s3_url": "https://s3.amazonaws.com/..."
+      }
+    ],
+    "statistics": {
+      "total": 25,
+      "pending": 15,
+      "reviewed": 5,
+      "accepted": 3,
+      "rejected": 2
+    },
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 25,
+      "pages": 2
+    }
+  }
+}
+```
+
+**Error Response** (404):
+```json
+{
+  "success": false,
+  "message": "Job not found or unauthorized"
+}
+```
+
+---
+
+### 11. Get All Applicants Across All Jobs
+
+**Endpoint**: `GET /recruiter/applicants`
+
+**Description**: Retrieves all applicants across all jobs posted by the authenticated recruiter.
+
+**Headers**: 
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Requirements**: 
+- User must be a recruiter
+- Profile must be complete
+
+**Query Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| status | string | No | Filter by application status: "pending", "reviewed", "accepted", "rejected" |
+| job_id | integer | No | Filter by specific job ID |
+| page | integer | No | Page number (default: 1) |
+| limit | integer | No | Results per page (default: 20) |
+
+**Request Body**: None
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "applicants": [
+      {
+        "application_id": 8,
+        "application_status": "pending",
+        "cover_letter": "I am excited about this opportunity...",
+        "applied_at": "2025-11-19T11:00:00.000Z",
+        "application_updated_at": "2025-11-19T11:00:00.000Z",
+        "job_id": 1,
+        "job_title": "Senior Full Stack Developer",
+        "job_location": "San Francisco, CA",
+        "employment_type": "Full-time",
+        "seeker_id": 4,
+        "seeker_email": "john.doe@example.com",
+        "full_name": "John Doe",
+        "current_job": "Frontend Developer",
+        "years_experience": 3,
+        "seeker_location": "Oakland, CA",
+        "phone": "+1234567891",
+        "profile_image_s3_url": "https://s3.amazonaws.com/...",
+        "resume_s3_url": "https://s3.amazonaws.com/..."
+      }
+    ],
+    "statistics": {
+      "total": 45,
+      "pending": 25,
+      "reviewed": 10,
+      "accepted": 7,
+      "rejected": 3
+    },
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 45,
+      "pages": 3
+    }
+  }
+}
+```
+
+---
+
 ## Jobs - Seeker
 
 ### 10. Browse Jobs
@@ -850,9 +1005,183 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
+### 13. Apply to Job
+
+**Endpoint**: `POST /jobs/:id/apply`
+
+**Description**: Allows a job seeker to submit an application for a specific job posting. The application is created with an initial status of "pending" and will be visible to the recruiter who posted the job. The system automatically prevents duplicate applications to ensure each seeker can only apply once per job.
+
+**Headers**: 
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Requirements**: 
+- User must be authenticated as a **seeker** (recruiters cannot apply to jobs)
+- Profile must be complete (profileCompletionStep >= 2)
+- Target job must have status "active" (closed jobs don't accept applications)
+- Seeker must not have previously applied to this job
+
+**URL Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| id | integer | The unique ID of the job posting to apply for |
+
+**Request Body**:
+```json
+{
+  "cover_letter": "I am very interested in this position and believe my skills align perfectly with your requirements. I have 5 years of experience in full-stack development with expertise in React and Node.js, and I'm particularly excited about the opportunity to work on microservices architecture and AWS cloud infrastructure."
+}
+```
+
+**Request Body (Without Cover Letter)**:
+```json
+{}
+```
+
+**Parameters**:
+| Field | Type | Required | Max Length | Description |
+|-------|------|----------|------------|-------------|
+| cover_letter | string | No | Unlimited | Optional personalized cover letter explaining your interest and qualifications. While optional, including a well-written cover letter significantly improves your chances. |
+
+**Success Response** (201):
+```json
+{
+  "success": true,
+  "message": "Application submitted successfully",
+  "data": {
+    "application": {
+      "id": 25,
+      "job_id": 1,
+      "seeker_id": 3,
+      "status": "pending",
+      "cover_letter": "I am very interested in this position...",
+      "created_at": "2025-11-19T15:30:00.000Z"
+    },
+    "job": {
+      "id": 1,
+      "title": "Senior Full Stack Developer"
+    }
+  }
+}
+```
+
+**Response Fields Explained**:
+- `application.id`: Unique application ID for tracking
+- `application.status`: Current status ("pending", "reviewed", "accepted", or "rejected")
+- `application.created_at`: Timestamp when application was submitted
+- `job.title`: Title of the job you applied for (useful for confirmation UI)
+
+---
+
+**Error Response - Duplicate Application** (400):
+```json
+{
+  "success": false,
+  "message": "You have already applied to this job"
+}
+```
+**Cause**: Seeker has already submitted an application for this job. Database constraint prevents duplicate applications.
+
+---
+
+**Error Response - Closed Job** (400):
+```json
+{
+  "success": false,
+  "message": "This job is no longer accepting applications"
+}
+```
+**Cause**: The job posting status is "closed" and no longer accepts new applications.
+
+---
+
+**Error Response - Job Not Found** (404):
+```json
+{
+  "success": false,
+  "message": "Job not found"
+}
+```
+**Cause**: No job exists with the provided ID, or the job has been deleted.
+
+---
+
+**Error Response - Wrong User Type** (403):
+```json
+{
+  "success": false,
+  "message": "Access denied. Required user type: seeker"
+}
+```
+**Cause**: User is logged in as a recruiter. Only seekers can apply to jobs.
+
+---
+
+**Error Response - Incomplete Profile** (403):
+```json
+{
+  "success": false,
+  "message": "Please complete your profile to access this feature",
+  "profileCompletionStep": 1,
+  "requiredStep": 2
+}
+```
+**Cause**: User's profile is incomplete. Must complete at least Step 2 (personal information) before applying to jobs.
+
+---
+
+**Error Response - Unauthorized** (401):
+```json
+{
+  "success": false,
+  "message": "No token provided"
+}
+```
+**Cause**: Missing authentication token. User must be logged in to apply for jobs.
+
+---
+
+**Important Notes**: 
+
+**Application Status Lifecycle**:
+1. **pending**: Initial status when application is submitted
+2. **reviewed**: Recruiter has viewed the application
+3. **accepted**: Application approved by recruiter
+4. **rejected**: Application declined by recruiter
+
+**Database Constraints**:
+- The database enforces a **UNIQUE** constraint on `(job_id, seeker_id)` combination
+- This prevents the same seeker from applying multiple times to the same job
+- If you try to apply twice, you'll receive a 400 error with "already applied" message
+
+**Best Practices**:
+- **Always include a cover letter**: Applications with personalized cover letters have significantly higher success rates
+- **Verify job status first**: Use GET `/jobs/:id` to check if job is still active before applying
+- **Check for existing application**: You can query GET `/seeker/applications` to see your application history
+- **Handle errors gracefully**: Show user-friendly messages for duplicate applications and closed jobs
+
+**What Happens After Application**:
+- Recruiter receives the application immediately
+- Recruiter can view your profile, resume, and cover letter
+- Recruiter can update application status (reviewed/accepted/rejected)
+- You can track your applications through the seeker endpoints (when implemented)
+
+**Security**:
+- Only the seeker who submitted the application can view their own applications
+- Recruiters can only view applications for their own job postings
+- Application data includes seeker profile information for recruiter review
+
+**Related Endpoints**:
+- GET `/recruiter/jobs/:id/applicants` - Recruiters view applicants for their jobs
+- GET `/recruiter/applicants` - Recruiters view all applicants across all jobs
+- GET `/jobs/:id` - View job details before applying
+
+---
+
 ## File Uploads
 
-### 13. Upload Resume
+### 14. Upload Resume
 
 **Endpoint**: `POST /upload/resume`
 
@@ -911,7 +1240,7 @@ Content-Type: multipart/form-data
 
 ---
 
-### 14. Upload Profile Image
+### 15. Upload Profile Image
 
 **Endpoint**: `POST /upload/profile-image`
 
@@ -962,7 +1291,7 @@ Content-Type: multipart/form-data
 
 ---
 
-### 15. Get Signed File URL
+### 16. Get Signed File URL
 
 **Endpoint**: `GET /upload/file-url`
 
@@ -1159,5 +1488,5 @@ For API issues or questions:
 
 ---
 
-**Last Updated**: November 18, 2025
-**API Version**: 1.0.0
+**Last Updated**: November 19, 2025
+**API Version**: 1.2.0
